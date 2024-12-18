@@ -1,2 +1,3 @@
-InternShipTool/bin
-InternShipTool/obj
+**/bin
+**/obj
+
