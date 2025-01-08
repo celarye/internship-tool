@@ -34,6 +34,8 @@ Tool voor het beheer van stages:
 
 - ID (PK)
 - Username
+- First name
+- Second name
 - Password (hashed using argon2-id)
 - User type (FK)
 
@@ -41,6 +43,8 @@ Tool voor het beheer van stages:
 
 - ID (PK,FK)
 - Username (FK)
+- First name (FK)
+- Second name (FK)
 - Password (hashed using argon2-id) (FK)
 - User type (FK)
 
@@ -48,6 +52,8 @@ Tool voor het beheer van stages:
 
 - ID (PK,FK)
 - Username (FK)
+- First name (FK)
+- Second name (FK)
 - Password (hashed using argon2-id) (FK)
 - User type (FK)
 - Education (FK)
@@ -72,6 +78,8 @@ Tool voor het beheer van stages:
 
 - ID (PK,FK)
 - Username (FK)
+- First name (FK)
+- Second name (FK)
 - User type (FK)
 - Password (hashed using argon2-id) (FK)
 
@@ -84,6 +92,8 @@ Tool voor het beheer van stages:
 
 - ID (PK,FK)
 - Username (FK)
+- First name (FK)
+- Second name (FK)
 - Password (hashed using argon2-id) (FK)
 - User type (FK)
 - Company ID (FK)
