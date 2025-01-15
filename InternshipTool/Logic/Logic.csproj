@@ -3,6 +3,8 @@
   <ItemGroup>
     <ProjectReference Include="..\Globals\Globals.csproj" />
     <ProjectReference Include="..\Data\Data.csproj" />
+    <ProjectReference Include="..\DataInterface\DataInterface.csproj" />
+    <ProjectReference Include="..\LogicInterface\LogicInterface.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

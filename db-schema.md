@@ -4,11 +4,11 @@ Tool voor het beheer van stages:
 
 ## Features
 
-- Login.
+- Login. DONE
   - By all users.
-- Register companies and a company employee.
+- Register companies and a company employee. DONE
   - By logged out users.
-- Register company employees for a specific company.
+- Register company employees for a specific company. DONE
   - By company employees.
 - Adding internship proposals.
   - By company employees.
@@ -16,6 +16,8 @@ Tool voor het beheer van stages:
   - By admins.
 - Asigning approved internship proposals to students.
   - By company employees and admins.
+- Add CVs to students.
+  - By students.
 - Adding internship evaluations.
   - By teachers and company employees.
 
@@ -33,16 +35,16 @@ Tool voor het beheer van stages:
 ### Users
 
 - ID (PK)
-- Username
+- Email
 - First name
 - Second name
-- Password (hashed using argon2-id)
-- User type (FK)
+- Password (hashed)
+- User type
 
 ### Admins
 
 - ID (PK,FK)
-- Username (FK)
+- Email (FK)
 - First name (FK)
 - Second name (FK)
 - Password (hashed using argon2-id) (FK)
@@ -51,47 +53,27 @@ Tool voor het beheer van stages:
 ### Students
 
 - ID (PK,FK)
-- Username (FK)
+- Email (FK)
 - First name (FK)
 - Second name (FK)
 - Password (hashed using argon2-id) (FK)
 - User type (FK)
-- Education (FK)
 - Curriculum vitae file path
 - Preferred internship
-
-### Education
-
-- ID (PK)
-- Name
-
-### Education Courses
-- Education ID (PK,FK)
-- Course (PK, FK)
-
-### Course
-
-- ID (PK)
-- Name
 
 ### Teachers
 
 - ID (PK,FK)
-- Username (FK)
+- Email (FK)
 - First name (FK)
 - Second name (FK)
 - User type (FK)
 - Password (hashed using argon2-id) (FK)
 
-### Teacher Courses
-
-- Teacher ID (PK,PK)
-- Course ID (PK, FK)
-
 ### Company Employee
 
 - ID (PK,FK)
-- Username (FK)
+- Email (FK)
 - First name (FK)
 - Second name (FK)
 - Password (hashed using argon2-id) (FK)
@@ -108,10 +90,10 @@ Tool voor het beheer van stages:
 
 - ID (PK)
 - Company ID (FK)
-- Approved
 - Location
+- Start date
 - Duration
-- Course ID (FK)
+- Approved
 
 ### Internship Supervisors
 

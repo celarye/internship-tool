@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Logic\Logic.csproj" />
     <ProjectReference Include="..\Globals\Globals.csproj" />
+    <ProjectReference Include="..\LogicInterface\LogicInterface.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
