@@ -90,32 +90,25 @@ Tool voor het beheer van stages:
 
 - ID (PK)
 - Company ID (FK)
-- Location
-- Start date
-- Duration
-- Approved
-
-### Internship Supervisors
-
-- Internship ID (PK,FK)
-- Teacher ID (PK,FK)
-
-### Internship Mentors
-
-- Internship ID (PK,FK)
-- Company employee ID (PK,FK)
+- Title
+- Description
+- Internship mentor (FK)
+- Internship teacher (FK)
+- Internship student (FK)
 
 ### Internship Candidates
 
 - Internship ID (PK,FK)
 - Student ID (PK,FK)
-- Approved
 
 ### Internship Evaluation
 
 - ID (PK)
 - Internship ID (FK)
-- Progress
-- Score
+- Mentor evalaution 1
+- Teacher evalaution 1
+- Mentor evalaution 2
+- Teacher evalaution 2
+- Overal score
 - Note
 
