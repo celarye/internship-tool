@@ -1,19 +1,20 @@
 using Globals.Enums;
 namespace Globals;
 
-public class Internship(int id, int companyId, string title, string description, int internshipMentor)
+public class Internship(int id, int companyId, string title, string description, int mentorId)
 {
   public int Id { get; } = id;
   public int CompanyId { get; } = companyId;
   public string Title { get; set; } = title;
   public string Description { get; set; } = description;
-  public int InternshipMentor { get; set; } = internshipMentor;
-  public int? InternshipTeacher { get; set; }
-  public int? InternshipStudent { get; set; }
+  public int MentorId { get; set; } = mentorId;
+  public bool Approved { get; set; } = false;
+  public int? StudentId { get; set; }
+  public int? TeacherId { get; set; }
 
   public override string ToString()
   {
-    return "Internship: " + Id + ", " + CompanyId + ", " + Title + ", " + Description + ", " + InternshipMentor + ", " + InternshipTeacher + ", " + InternshipStudent;
+    return "Internship: " + Id + ", " + CompanyId + ", " + Title + ", " + Description + ", " + MentorId + ", " + Approved + ", " + StudentId + ", " + TeacherId;
   }
 }
 
@@ -29,7 +30,7 @@ public class InternshipCandidate(int internshipId, int studentId)
 
 }
 
-public class InternshipEvaluation(int id, int internshipId, int overalScore, string note)
+public class InternshipEvaluation(int id, int internshipId)
 {
   public int Id { get; } = id;
   public int InternShipId { get; } = internshipId;
@@ -37,8 +38,8 @@ public class InternshipEvaluation(int id, int internshipId, int overalScore, str
   public InternshipEvaluations? TeacherEvaluation1 { get; set; }
   public InternshipEvaluations? MentorEvaluation2 { get; set; }
   public InternshipEvaluations? TeacherEvaluation2 { get; set; }
-  public int OveralScore { get; set; }
-  public string Note { get; set; }
+  public int? OveralScore { get; set; }
+  public string? Note { get; set; }
 
   public override string ToString()
   {

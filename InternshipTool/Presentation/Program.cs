@@ -47,7 +47,7 @@ public class Program
 
     try
     {
-      _logicProvidor.UpdateUser(null, null, null, null, null);
+      _logicProvidor.UpdateUser("test1", "a", "b", "test1", UserTypes.CompanyEmployee);
 
       Console.WriteLine("Succesfully updated user");
     }

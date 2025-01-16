@@ -22,6 +22,11 @@ public class LogicProvidor : ILogicProvidor
     _loggedInCompany = null;
   }
 
+  public User GetUser(int id)
+  {
+    return _dataProvidor.GetUser(id);
+  }
+
   public void LoginUser(string email, string password)
   {
     User? currentUser = _dataProvidor.GetUserByEmail(email);
@@ -80,51 +85,56 @@ public class LogicProvidor : ILogicProvidor
     _dataProvidor.AddUser(newUser);
   }
 
-  public void UpdateUser(string? email, string? firstName, string? secondName, string? password, UserTypes? userType)
+  public void UpdateUser(string email, string firstName, string secondName, string password, UserTypes userType)
   {
-    if (email != null && email.Length < 3)
+    if (email.Length < 3)
     {
       throw new ArgumentException("Email is too short. Should be longer than 3 characters.");
     }
-    else if (email != null && _dataProvidor.GetUserByEmail(email) != null)
+    else if (_loggedInUser.Email != email && _dataProvidor.GetUserByEmail(email) != null)
     {
       throw new ArgumentException("User with the same email already exists.");
     }
 
-    if (password != null && password.Length < 3)
+    if (password.Length < 3)
     {
       throw new ArgumentException("Password is too short. Should be longer than 3 characters.");
     }
 
-    if (userType != null)
-    {
-      _loggedInUser.UserType = (UserTypes)userType;
-    }
+    _loggedInUser.UserType = userType;
 
     if (_loggedInUser.UserType == UserTypes.CompanyEmployee)
     {
-      _loggedInUser = new CompanyEmployee(_loggedInUser.Id, _loggedInUser.Email, _loggedInUser.FirstName, _loggedInUser.SecondName, _loggedInUser.Password, _loggedInUser.UserType, _loggedInCompany.Id);
+      CompanyEmployee companyEmployee = ((CompanyEmployee)_loggedInUser);
+
+      companyEmployee.CompanyId = _loggedInCompany.Id;
+
+      _loggedInUser = companyEmployee;
     }
 
-    if (email != null)
+    _loggedInUser.Email = email;
+
+    _loggedInUser.FirstName = firstName;
+
+    _loggedInUser.SecondName = secondName;
+
+    if (_loggedInUser.Password != password)
     {
-      _loggedInUser.Email = email;
+      _loggedInUser.Password = HashPassword(null, password);
     }
 
-    if (firstName != null)
-    {
-      _loggedInUser.FirstName = firstName;
-    }
+    _dataProvidor.UpdateUser(_loggedInUser);
+  }
 
-    if (secondName != null)
-    {
-      _loggedInUser.SecondName = secondName;
-    }
+  public void AddCVToStudent(string cvPath)
+  {
+    // TODO: Save PDF
 
-    if (password != null)
-    {
-      _loggedInUser.Password = password;
-    }
+    Student student = ((Student)_loggedInUser);
+
+    student.CVPath = cvPath;
+
+    _loggedInUser = student;
 
     _dataProvidor.UpdateUser(_loggedInUser);
   }
@@ -139,7 +149,7 @@ public class LogicProvidor : ILogicProvidor
     return salt;
   }
 
-  public string HashPassword(byte[] salt, string password)
+  public string HashPassword(byte[]? salt, string password)
   {
     if (salt == null)
     {
@@ -163,22 +173,13 @@ public class LogicProvidor : ILogicProvidor
     byte[] salt = new byte[16];
     Array.Copy(hashBytes, 0, salt, 0, 16);
 
-    // // Use the salt to hash the input password
-    // var pbkdf2 = new Rfc2898DeriveBytes(inputPassword, salt, 100000);
-    // byte[] hash = pbkdf2.GetBytes(20);
-
     return HashPassword(salt, inputPassword) == savedPasswordHash;
+  }
 
-    // // Compare the stored hash (last 20 bytes) with the newly derived hash
-    // for (int i = 0; i < 20; i++)
-    // {
-    //   if (hashBytes[i + 16] != hash[i])
-    //   {
-    //     return false; // Mismatch found
-    //   }
-    // }
-
-    // return true; // All bytes match
+  // Company methods
+  public Company GetCompany(int id)
+  {
+    return _dataProvidor.GetCompany(id);
   }
 
   public void RegisterCompany(string companyName)
@@ -194,6 +195,134 @@ public class LogicProvidor : ILogicProvidor
     _loggedInCompany = newCompany;
 
     _dataProvidor.AddCompany(newCompany);
+  }
+
+  // Internshup methods
+  public List<Internship> GetAdminInternships(bool approved)
+  {
+    return _dataProvidor.GetInternships(approved);
+  }
+
+  public List<Internship> GetStudentAvailableInternships()
+  {
+    return _dataProvidor.GetInternshipsByStudent(null);
+  }
+
+  public Internship? GetStudentInternship()
+  {
+    return _dataProvidor.GetInternshipsByStudent(_loggedInUser.Id)[0];
+  }
+
+  public List<Internship> GetTeacherInternships()
+  {
+    return _dataProvidor.GetInternshipsByTeacher(_loggedInUser.Id);
+  }
+
+  public List<Internship> GetCompanyInternships(bool approved)
+  {
+    return _dataProvidor.GetInternshipsByCompany(approved, _loggedInCompany.Id);
+  }
+
+  public List<Internship> GetMentorInternships()
+  {
+    return _dataProvidor.GetInternshipsByMentor(_loggedInUser.Id);
+  }
+
+  public void AddInternship(string title, string description, int mentorId)
+  {
+    Internship internship = new Internship(_dataProvidor.GetNextInternshipId(), _loggedInCompany.Id, title, description, mentorId);
+
+    _dataProvidor.AddInternship(internship);
+  }
+
+  public void ApproveInternship(Internship internship)
+  {
+    internship.Approved = true;
+
+    _dataProvidor.UpdateInternship(internship);
+  }
+
+  public void AssignInternship(Internship internship, int studentId, int teacherId)
+  {
+    internship.StudentId = studentId;
+    internship.TeacherId = teacherId;
+
+    _dataProvidor.UpdateInternship(internship);
+  }
+
+  // InternshipCandidate methods
+  public List<InternshipCandidate> GetInternshipCandidates(int internshipId)
+  {
+    return _dataProvidor.GetInternshipCandidatesByInternship(internshipId);
+  }
+
+  public List<InternshipCandidate> GetStudentInternshipCandidacies()
+  {
+    return _dataProvidor.GetInternshipCandidatesByStudent(_loggedInUser.Id);
+  }
+
+  public void AddInternshipCandidate(int internshipId)
+  {
+    if (((Student)_loggedInUser).CVPath == null)
+    {
+      throw new UnauthorizedAccessException("You need to have a CV to be able to put yourself as a candidate for an internship");
+    }
+
+    InternshipCandidate internshipCandidate = new InternshipCandidate(_loggedInUser.Id, internshipId);
+
+    _dataProvidor.AddInternshipCandidate(internshipCandidate);
+  }
+
+  public void RemoveInternshipCandidates(int internshipId)
+  {
+    _dataProvidor.RemoveInternshipCandidates(internshipId);
+  }
+
+  public void RemoveInternshipCandidacies(int studentId)
+  {
+    _dataProvidor.RemoveInternshipCandidacies(studentId);
+  }
+
+  public InternshipEvaluation GetInternshipEvaluation(int internshipId)
+  {
+    return _dataProvidor.GetInternshipEvaluationByInternship(internshipId);
+  }
+
+  public void AddInternshipEvaluation(int internshipId)
+  {
+    InternshipEvaluation internshipEvaluation = new InternshipEvaluation(_dataProvidor.GetNextInternshipEvaluationId(), internshipId);
+
+    _dataProvidor.AddInternshipEvaluation(internshipEvaluation);
+  }
+
+  public void UpdateInternshipEvaluation(InternshipEvaluation internshipEvaluation, InternshipEvaluations? mentorEvaluation1, InternshipEvaluations? teacherEvaluation1, InternshipEvaluations? mentorEvaluation2, InternshipEvaluations? teacherEvaluation2, string note)
+  {
+    internshipEvaluation.MentorEvaluation1 = mentorEvaluation1;
+    internshipEvaluation.TeacherEvaluation1 = teacherEvaluation1;
+    internshipEvaluation.MentorEvaluation2 = mentorEvaluation2;
+    internshipEvaluation.TeacherEvaluation2 = teacherEvaluation2;
+
+    var scoreMapping = new Dictionary<InternshipEvaluations, int>
+    {
+        { InternshipEvaluations.A, 0 },
+        { InternshipEvaluations.B, 5 },
+        { InternshipEvaluations.C, 10 },
+        { InternshipEvaluations.D, 15 },
+        { InternshipEvaluations.E, 20 }
+    };
+
+    int totalScore = 0;
+
+    totalScore += mentorEvaluation1.HasValue ? scoreMapping[mentorEvaluation1.Value] : 0;
+    totalScore += teacherEvaluation1.HasValue ? scoreMapping[teacherEvaluation1.Value] : 0;
+    totalScore += mentorEvaluation2.HasValue ? scoreMapping[mentorEvaluation2.Value] : 0;
+    totalScore += teacherEvaluation2.HasValue ? scoreMapping[teacherEvaluation2.Value] : 0;
+
+    internshipEvaluation.OveralScore = totalScore;
+
+    internshipEvaluation.Note = note;
+
+    _dataProvidor.UpdateInternshipEvaluation(internshipEvaluation);
   }
 }
 
