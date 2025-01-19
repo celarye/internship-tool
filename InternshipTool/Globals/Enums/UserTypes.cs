@@ -2,8 +2,8 @@ namespace Globals.Enums;
 
 public enum UserTypes
 {
-  Admin,
-  Student,
-  Teacher,
-  CompanyEmployee,
+  Admin = 1,
+  Student = 2,
+  Teacher = 3,
+  CompanyEmployee = 4,
 }

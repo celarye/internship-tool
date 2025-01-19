@@ -1,0 +1,30 @@
+<Window x:Class="PresentationGUI.InternshipDetailsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:PresentationGUI"
+        mc:Ignorable="d"
+        Title="Internship" Height="410" Width="415">
+    <Grid>
+        <TextBlock Text="Internship" 
+               HorizontalAlignment="Left" 
+               VerticalAlignment="Top" 
+               FontSize="24" Margin="10,10,0,0"/>
+        <Label x:Name="TitleLabel" Content="Title: " HorizontalAlignment="Left" Margin="10,68,0,0" VerticalAlignment="Top" Width="200"/>
+        <Label x:Name="DescriptionLabel" Content="Description" HorizontalAlignment="Left" Margin="10,104,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="DescriptionTextBox" HorizontalAlignment="Left" Margin="10,130,0,0" VerticalAlignment="Top" Width="200" Height="54" Text="" TextWrapping="Wrap"/>
+        <Label x:Name="CompanyLabel" Content="Company: " HorizontalAlignment="Left" Margin="226,42,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="ApprovedLabel" Content="Approved: " HorizontalAlignment="Left" Margin="226,68,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="MentorLabel" Content="Mentor: " HorizontalAlignment="Left" Margin="225,94,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="StudentLabel" Content="Student: " HorizontalAlignment="Left" Margin="225,120,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="TeacherLabel" Content="Teacher: " HorizontalAlignment="Left" Margin="225,146,0,0" VerticalAlignment="Top"/>
+        <Label x:Name="CandidatesLabel" Content="Candidates" HorizontalAlignment="Left" Margin="10,184,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="CandidatesTextBox" HorizontalAlignment="Left" Margin="10,210,0,0" VerticalAlignment="Top" Width="200" Height="54" Text="" TextWrapping="Wrap"/>
+        <Label x:Name="CandidateEmailLabel" Content="Candidate Email" HorizontalAlignment="Left" Margin="27,270,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="CandidateEmailTextBox" HorizontalAlignment="Left" Margin="10,296,0,0" FontSize="20" Text="" VerticalAlignment="Top" Width="130" Height="30"/>
+        <Button x:Name="DownloadCVButton" Content="Download CV" Width="120" Height="30" Margin="145,296,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Click="DownloadCV" RenderTransformOrigin="0.472,-1"/>
+        <Button x:Name="OpenReviewButton" Content="Open Review" Width="120" Height="30" Margin="270,296,0,0" VerticalAlignment="Top" HorizontalAlignment="Left" Click="OpenReview" RenderTransformOrigin="0.472,-1" Visibility="Hidden"/>
+        <Label x:Name="FeedbackLabel" Content="" HorizontalAlignment="Center" Margin="0,340,0,0" VerticalAlignment="Top"/>
+    </Grid>
+</Window>

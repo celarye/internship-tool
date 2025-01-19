@@ -16,8 +16,8 @@ public class DataProvidor : IDataProvidor
   private const string UsersFilePath = "users.json";
   private const string CompaniesFilePath = "companies.json";
   private const string InternshipsFilePath = "internships.json";
-  private const string InternshipsCandidateFilePath = "internships_candidate.json";
-  private const string InternshipsEvaluationFilePath = "internships_evaluation.json";
+  private const string InternshipsCandidateFilePath = "internships_candidates.json";
+  private const string InternshipsEvaluationFilePath = "internships_evaluations.json";
 
   private int _userCount;
   private int _companyCount;
@@ -55,7 +55,7 @@ public class DataProvidor : IDataProvidor
   }
 
   // User methods
-  public User GetUser(int id)
+  public User? GetUser(int id)
   {
     using (StreamReader file = File.OpenText(UsersFilePath))
     {
@@ -63,10 +63,12 @@ public class DataProvidor : IDataProvidor
 
       var userMatch = users
           .Cast<JObject>()
-          .Where(user => (int)user["Id"] == id)
-          .FirstOrDefault();
+          .FirstOrDefault(user => (int)user["Id"]! == id);
 
-      switch (userMatch["UserType"].ToObject<UserTypes>())
+      if (userMatch == null)
+        return null;
+
+      switch (userMatch["UserType"]!.ToObject<UserTypes>())
       {
         case UserTypes.Admin:
           return userMatch.ToObject<Admin>();
@@ -74,8 +76,10 @@ public class DataProvidor : IDataProvidor
           return userMatch.ToObject<Student>();
         case UserTypes.Teacher:
           return userMatch.ToObject<Teacher>();
-        default:
+        case UserTypes.CompanyEmployee:
           return userMatch.ToObject<CompanyEmployee>();
+        default:
+          return null;
       }
     }
   }
@@ -91,15 +95,13 @@ public class DataProvidor : IDataProvidor
 
       var userMatch = users
             .Cast<JObject>()
-            .Where(user => user["Email"].ToString() == email)
+            .Where(user => user["Email"]!.ToString() == email)
             .FirstOrDefault();
 
       if (userMatch == null)
-      {
         return null;
-      }
 
-      switch (userMatch["UserType"].ToObject<UserTypes>())
+      switch (userMatch["UserType"]!.ToObject<UserTypes>())
       {
         case UserTypes.Admin:
           return userMatch.ToObject<Admin>();
@@ -118,12 +120,37 @@ public class DataProvidor : IDataProvidor
     return ++_userCount;
   }
 
-  public void AddUser(User user)
+  private delegate void UserOperation(JArray users, User user);
+
+  private void AddUserDelegate(JArray users, User user)
+  {
+    JObject userObject = JObject.FromObject(user);
+    users.Add(userObject);
+  }
+
+  private void UpdateUserDelegate(JArray users, User user)
+  {
+    JObject userObject = JObject.FromObject(user);
+
+    for (int i = 0; i < users.Count; i++)
+    {
+      JObject existingUser = (JObject)users[i];
+
+      if ((int)existingUser["Id"]! == user.Id)
+      {
+        users[i] = userObject;
+        break;
+      }
+    }
+  }
+
+  private void WriteToFile(string filePath, User user, UserOperation operation)
   {
     JArray users;
-    if (File.Exists(UsersFilePath))
+
+    if (File.Exists(filePath))
     {
-      using (StreamReader file = File.OpenText(UsersFilePath))
+      using (StreamReader file = File.OpenText(filePath))
       {
         users = (JArray)JToken.ReadFrom(new JsonTextReader(file));
       }
@@ -133,11 +160,9 @@ public class DataProvidor : IDataProvidor
       users = new JArray();
     }
 
-    JObject userObject = JObject.FromObject(user);
+    operation(users, user);
 
-    users.Add(userObject);
-
-    using (StreamWriter file = File.CreateText(UsersFilePath))
+    using (StreamWriter file = File.CreateText(filePath))
     {
       using (JsonTextWriter writer = new JsonTextWriter(file))
       {
@@ -145,41 +170,20 @@ public class DataProvidor : IDataProvidor
         users.WriteTo(writer);
       }
     }
+  }
+
+  public void AddUser(User user)
+  {
+    WriteToFile(UsersFilePath, user, AddUserDelegate);
   }
 
   public void UpdateUser(User user)
   {
-    JArray users;
-    using (StreamReader file = File.OpenText(UsersFilePath))
-    {
-      users = (JArray)JToken.ReadFrom(new JsonTextReader(file));
-    }
-
-    JObject userObject = JObject.FromObject(user);
-
-    for (int i = 0; i < users.Count; i++)
-    {
-      JObject existingUser = (JObject)users[i];
-
-      if ((int)existingUser["Id"] == user.Id)
-      {
-        users[i] = userObject;
-        break;
-      }
-    }
-
-    using (StreamWriter file = File.CreateText(UsersFilePath))
-    {
-      using (JsonTextWriter writer = new JsonTextWriter(file))
-      {
-        writer.Formatting = Formatting.Indented;
-        users.WriteTo(writer);
-      }
-    }
+    WriteToFile(UsersFilePath, user, UpdateUserDelegate);
   }
 
   // Company methods
-  public Company GetCompany(int id)
+  public Company? GetCompany(int id)
   {
     using (StreamReader file = File.OpenText(CompaniesFilePath))
     {
@@ -187,10 +191,17 @@ public class DataProvidor : IDataProvidor
 
       var companyMatch = companies
           .Cast<JObject>()
-          .Where(company => (int)company["Id"] == id)
+          .Where(company => (int)company["Id"]! == id)
           .FirstOrDefault();
 
-      return companyMatch.ToObject<Company>();
+      if (companyMatch != null)
+      {
+        return companyMatch.ToObject<Company>();
+      }
+      else
+      {
+        return null;
+      }
     }
   }
 
@@ -237,11 +248,12 @@ public class DataProvidor : IDataProvidor
     {
       JArray internships = (JArray)JToken.ReadFrom(new JsonTextReader(file));
 
-      var internshipMatches = internships
-          .Cast<JObject>()
-          .Where(internship => (bool)internship["Approved"] == approved);
+      var internshipMatches =
+        from internship in internships.Cast<JObject>()
+        where (bool)internship["Approved"]! == approved
+        select internship;
 
-      return internshipMatches.Select(jObject => jObject.ToObject<Internship>()).ToList();
+      return internshipMatches.Select(jObject => jObject.ToObject<Internship>()).Where(i => i != null).ToList()!;
     }
   }
 
@@ -254,12 +266,85 @@ public class DataProvidor : IDataProvidor
     {
       JArray internships = (JArray)JToken.ReadFrom(new JsonTextReader(file));
 
-      var internshipMatches = internships
-          .Cast<JObject>()
-          .Where(internship => (bool)internship["Approved"] == true && (int)internship["StudentId"] == studentId);
+      var internshipMatches =
+         from internship in internships.Cast<JObject>()
+         where (bool)internship["Approved"]! == true
+            && internship["StudentId"] is not null
+            && int.TryParse(internship["StudentId"]?.ToString(), out int studentIdValue)
+            && studentIdValue == studentId
+         select internship;
 
-      return internshipMatches.Select(jObject => jObject.ToObject<Internship>()).ToList();
+      return internshipMatches.Select(jObject => jObject.ToObject<Internship>()).Where(i => i != null).ToList()!;
     }
+  }
+
+  public class InternshipCollection
+  {
+    private readonly Dictionary<int, Internship> _internships = new Dictionary<int, Internship>();
+
+    public void AddInternship(Internship internship)
+    {
+      this[internship.Id] = internship;
+    }
+
+    public Internship this[int id]
+    {
+      get
+      {
+        if (_internships.ContainsKey(id))
+        {
+          return _internships[id];
+        }
+        else
+        {
+          throw new KeyNotFoundException($"Internship with ID {id} not found.");
+        }
+      }
+      set
+      {
+        _internships[id] = value;
+      }
+    }
+
+    public void LoadInternshipsNotByStudent(string internshipsFilePath)
+    {
+      if (!File.Exists(internshipsFilePath))
+        return;
+
+      using (StreamReader file = File.OpenText(internshipsFilePath))
+      {
+        JArray internships = (JArray)JToken.ReadFrom(new JsonTextReader(file));
+
+        var internshipMatches =
+           from internship in internships.Cast<JObject>()
+           where (bool)internship["Approved"]! == true
+              && internship["StudentId"]!.Type == JTokenType.Null
+           select internship;
+
+        foreach (var internship in internshipMatches)
+        {
+          var internshipObject = internship.ToObject<Internship>();
+          if (internshipObject != null)
+          {
+            this[internshipObject.Id] = internshipObject;
+          }
+        }
+      }
+    }
+
+    public List<Internship> GetAllInternships()
+    {
+      return _internships.Values.ToList();
+    }
+  }
+
+  public List<Internship> GetInternshipsNotByStudent()
+  {
+    var internshipCollection = new InternshipCollection();
+
+    internshipCollection.LoadInternshipsNotByStudent(InternshipsFilePath);
+
+    return internshipCollection.GetAllInternships();
   }
 
   public List<Internship> GetInternshipsByTeacher(int teacherId)
@@ -271,11 +356,14 @@ public class DataProvidor : IDataProvidor
     {
       JArray internships = (JArray)JToken.ReadFrom(new JsonTextReader(file));
 
-      var internshipMatches = internships
-          .Cast<JObject>()
-          .Where(internship => (int)internship["TeacherId"] == teacherId);
+      var internshipMatches =
+         from internship in internships.Cast<JObject>()
+         where internship["TeacherId"] is not null
+            && int.TryParse(internship["TeacherId"]?.ToString(), out int teacherIdValue)
+            && teacherIdValue == teacherId
+         select internship;
 
-      return internshipMatches.Select(jObject => jObject.ToObject<Internship>()).ToList();
+      return internshipMatches.Select(jObject => jObject.ToObject<Internship>()).Where(i => i != null).ToList()!;
     }
   }
 
@@ -290,9 +378,9 @@ public class DataProvidor : IDataProvidor
 
       var internshipMatches = internships
           .Cast<JObject>()
-          .Where(internship => (bool)internship["Approved"] == approved && (int)internship["CompanyId"] == companyId);
+          .Where(internship => (bool)internship["Approved"]! == approved && (int)internship["CompanyId"]! == companyId);
 
-      return internshipMatches.Select(jObject => jObject.ToObject<Internship>()).ToList();
+      return internshipMatches.Select(jObject => jObject.ToObject<Internship>()).Where(i => i != null).ToList()!;
     }
   }
 
@@ -307,9 +395,9 @@ public class DataProvidor : IDataProvidor
 
       var internshipMatches = internships
           .Cast<JObject>()
-          .Where(internship => (int)internship["MentorId"] == mentorId);
+          .Where(internship => (int)internship["MentorId"]! == mentorId);
 
-      return internshipMatches.Select(jObject => jObject.ToObject<Internship>()).ToList();
+      return internshipMatches.Select(jObject => jObject.ToObject<Internship>()).Where(i => i != null).ToList()!;
     }
   }
 
@@ -360,7 +448,7 @@ public class DataProvidor : IDataProvidor
     {
       JObject existingInternship = (JObject)internships[i];
 
-      if ((int)existingInternship["Id"] == internship.Id)
+      if ((int)existingInternship["Id"]! == internship.Id)
       {
         internships[i] = internshipObject;
         break;
@@ -389,7 +477,7 @@ public class DataProvidor : IDataProvidor
 
       var internshipCandidateMatches = internshipCandidates
           .Cast<JObject>()
-          .Where(internshipCandidate => (int)internshipCandidate["InternshipId"] == internshipId);
+          .Where(internshipCandidate => (int)internshipCandidate["InternshipId"]! == internshipId);
 
       return internshipCandidateMatches.Select(jObject => jObject.ToObject<InternshipCandidate>()).ToList();
     }
@@ -406,7 +494,7 @@ public class DataProvidor : IDataProvidor
 
       var internshipCandidateMatches = internshipCandidates
           .Cast<JObject>()
-          .Where(internshipCandidate => (int)internshipCandidate["StudentId"] == studentId);
+          .Where(internshipCandidate => (int)internshipCandidate["StudentId"]! == studentId);
 
       return internshipCandidateMatches.Select(jObject => jObject.ToObject<InternshipCandidate>()).ToList();
     }
@@ -457,7 +545,7 @@ public class DataProvidor : IDataProvidor
     {
       JObject existingInternshipCandidate = (JObject)internshipCandidates[i];
 
-      if ((int)existingInternshipCandidate["Id"] == internshipId)
+      if ((int)existingInternshipCandidate["InternshipId"]! == internshipId)
       {
         internshipCandidates.Remove(existingInternshipCandidate);
       }
@@ -485,7 +573,7 @@ public class DataProvidor : IDataProvidor
     {
       JObject existingInternshipCandidate = (JObject)internshipCandidates[i];
 
-      if ((int)existingInternshipCandidate["StudentId"] == studentId)
+      if ((int)existingInternshipCandidate["StudentId"]! == studentId)
       {
         internshipCandidates.Remove(existingInternshipCandidate);
       }
@@ -502,7 +590,7 @@ public class DataProvidor : IDataProvidor
   }
 
   // InternshipEvaluation methods
-  public InternshipEvaluation GetInternshipEvaluationByInternship(int internshipId)
+  public InternshipEvaluation? GetInternshipEvaluationByInternship(int internshipId)
   {
     using (StreamReader file = File.OpenText(InternshipsEvaluationFilePath))
     {
@@ -510,7 +598,7 @@ public class DataProvidor : IDataProvidor
 
       var internshipEvaluationMatches = internshipEvaluations
           .Cast<JObject>()
-          .Where(internshipEvaluation => (int)internshipEvaluation["InternshipId"] == internshipId)
+          .Where(internshipEvaluation => (int)internshipEvaluation["InternshipId"]! == internshipId)
           .First();
 
       return internshipEvaluationMatches.ToObject<InternshipEvaluation>();
@@ -564,7 +652,7 @@ public class DataProvidor : IDataProvidor
     {
       JObject existingInternshipEvaluations = (JObject)internshipEvaluations[i];
 
-      if ((int)existingInternshipEvaluations["Id"] == internshipEvaluation.Id)
+      if ((int)existingInternshipEvaluations["Id"]! == internshipEvaluation.Id)
       {
         internshipEvaluations[i] = internshipEvaluationObject;
         break;

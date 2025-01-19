@@ -22,9 +22,19 @@ public class LogicProvidor : ILogicProvidor
     _loggedInCompany = null;
   }
 
-  public User GetUser(int id)
+  public User? GetUser(int id)
   {
     return _dataProvidor.GetUser(id);
+  }
+
+  public User? GetUserByEmail(string email)
+  {
+    return _dataProvidor.GetUserByEmail(email);
+  }
+
+  public User? GetLoggedInUser()
+  {
+    return _loggedInUser;
   }
 
   public void LoginUser(string email, string password)
@@ -33,35 +43,24 @@ public class LogicProvidor : ILogicProvidor
 
     if (currentUser == null)
     {
-      throw new UnauthorizedAccessException("No user with this email exists.");
+      throw new UnauthorizedAccessException("No user with this email exists");
     }
 
     if (VerifyPasswords(currentUser.Password, password))
     {
       _loggedInUser = currentUser;
     }
-
-    if (_loggedInUser == null)
+    else
     {
-      throw new UnauthorizedAccessException("Invalid email or password.");
+      throw new UnauthorizedAccessException("Invalid email or password");
     }
   }
 
-  public void RegisterUser(string email, string firstName, string secondName, string password, UserTypes userType)
-  {
-    if (email.Length < 3)
-    {
-      throw new ArgumentException("Email is too short. Should be longer than 3 characters.");
-    }
-
-    if (password.Length < 3)
-    {
-      throw new ArgumentException("Password is too short. Should be longer than 3 characters.");
-    }
-
+  public void RegisterUser(string email, string password, string firstName, string secondName, UserTypes userType)
+  { 
     if (_dataProvidor.GetUserByEmail(email) != null)
     {
-      throw new ArgumentException("User with the same email already exists.");
+      throw new ArgumentException("Email is already in use");
     }
 
     User newUser;
@@ -78,65 +77,95 @@ public class LogicProvidor : ILogicProvidor
         newUser = new Teacher(_dataProvidor.GetNextUserId(), email, firstName, secondName, HashPassword(null, password), userType);
         break;
       default:
-        newUser = new CompanyEmployee(_dataProvidor.GetNextUserId(), email, firstName, secondName, HashPassword(null, password), userType, null);
+        newUser = new CompanyEmployee(_dataProvidor.GetNextUserId(), email, firstName, secondName, HashPassword(null, password), userType, _loggedInCompany!.Id);
         break;
     }
 
     _dataProvidor.AddUser(newUser);
   }
 
-  public void UpdateUser(string email, string firstName, string secondName, string password, UserTypes userType)
+  public void UpdateUser(User user, string? email, string? firstName, string? secondName, string? password, UserTypes? userType, string? cvPath)
   {
-    if (email.Length < 3)
-    {
-      throw new ArgumentException("Email is too short. Should be longer than 3 characters.");
-    }
-    else if (_loggedInUser.Email != email && _dataProvidor.GetUserByEmail(email) != null)
+    if (email != null && _dataProvidor.GetUserByEmail(email) != null)
     {
       throw new ArgumentException("User with the same email already exists.");
     }
 
-    if (password.Length < 3)
+    if (email != null)
     {
-      throw new ArgumentException("Password is too short. Should be longer than 3 characters.");
+      user.Email = email;
     }
 
-    _loggedInUser.UserType = userType;
-
-    if (_loggedInUser.UserType == UserTypes.CompanyEmployee)
+    if (firstName != null)
     {
-      CompanyEmployee companyEmployee = ((CompanyEmployee)_loggedInUser);
-
-      companyEmployee.CompanyId = _loggedInCompany.Id;
-
-      _loggedInUser = companyEmployee;
+      user.FirstName = firstName;
     }
 
-    _loggedInUser.Email = email;
-
-    _loggedInUser.FirstName = firstName;
-
-    _loggedInUser.SecondName = secondName;
-
-    if (_loggedInUser.Password != password)
+    if (secondName != null)
     {
-      _loggedInUser.Password = HashPassword(null, password);
+      user.SecondName = secondName;
     }
 
-    _dataProvidor.UpdateUser(_loggedInUser);
-  }
+    if (password != null)
+    {
+      user.Password = HashPassword(null, password);
+    }
 
-  public void AddCVToStudent(string cvPath)
-  {
-    // TODO: Save PDF
+    if (userType != null)
+    {
+      user.UserType = (UserTypes)userType;
+    }
 
-    Student student = ((Student)_loggedInUser);
+    switch (user.UserType)
+    {
+      case UserTypes.Admin:
+        break;
+      case UserTypes.Student:
+        if (cvPath == null)
+          return;
 
-    student.CVPath = cvPath;
+        Student student = (Student)user;
 
-    _loggedInUser = student;
+        string cvDirectory = "cv";
 
-    _dataProvidor.UpdateUser(_loggedInUser);
+        if (!Directory.Exists(cvDirectory))
+        {
+          Directory.CreateDirectory(cvDirectory);
+        }
+
+        string destinationPath = Path.Combine(cvDirectory, $"{student.Id}.pdf");
+
+        try
+        {
+          File.Copy(cvPath, Path.Combine(destinationPath), overwrite: true);
+
+          student.CVPath = destinationPath;
+          user = student;
+        }
+        catch (IOException ex)
+        {
+          System.Diagnostics.Debug.WriteLine($"Error copying file: {ex.Message}");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+          System.Diagnostics.Debug.WriteLine($"Permission error: {ex.Message}");
+        }
+        break;
+      case UserTypes.Teacher:
+        break;
+      case UserTypes.CompanyEmployee:
+        if (_loggedInCompany == null)
+          return;
+
+        CompanyEmployee companyEmployee = ((CompanyEmployee)user);
+
+        companyEmployee.CompanyId = _loggedInCompany.Id;
+
+        user = companyEmployee;
+        break;
+    }
+
+    _dataProvidor.UpdateUser(user);
   }
 
   public byte[] GenerateSalt()
@@ -177,21 +206,37 @@ public class LogicProvidor : ILogicProvidor
   }
 
   // Company methods
-  public Company GetCompany(int id)
+  public Company? GetCompany(int id)
   {
     return _dataProvidor.GetCompany(id);
   }
 
-  public void RegisterCompany(string companyName)
+  public Company? GetLoggedInCompany()
   {
-    if (companyName.Length < 3)
+    return _loggedInCompany;
+  }
+
+  public void LoginCompany()
+  {
+    _loggedInCompany = _dataProvidor.GetCompany((int)((CompanyEmployee)_loggedInUser!).CompanyId!);
+  }
+
+  public void RegisterCompany(string email, string password, string firstName, string secondName, string companyName)  
+  {
+    if (_dataProvidor.GetUserByEmail(email) != null)
     {
-      throw new ArgumentException("Company name is too short. Should be longer than 3 characters.");
+      throw new ArgumentException("Email is already in use");
     }
 
-    var newCompany = new Company(_dataProvidor.GetNextCompanyId(), companyName, _loggedInUser.Id);
+    int userId = _dataProvidor.GetNextUserId();
+    int companyId = _dataProvidor.GetNextCompanyId();
 
-    // Unlike with users, registering companies sets them as the _loggedInCompany
+    User newCompanyEmployee = new CompanyEmployee(userId, email, firstName, secondName, HashPassword(null, password), UserTypes.CompanyEmployee, companyId);
+
+    _dataProvidor.AddUser(newCompanyEmployee);
+
+    var newCompany = new Company(companyId, companyName, userId);
+
     _loggedInCompany = newCompany;
 
     _dataProvidor.AddCompany(newCompany);
@@ -205,34 +250,53 @@ public class LogicProvidor : ILogicProvidor
 
   public List<Internship> GetStudentAvailableInternships()
   {
-    return _dataProvidor.GetInternshipsByStudent(null);
+    if (_loggedInUser == null)
+      return new List<Internship>();
+
+    return _dataProvidor.GetInternshipsNotByStudent();
   }
 
-  public Internship? GetStudentInternship()
+  public List<Internship> GetStudentInternship()
   {
-    return _dataProvidor.GetInternshipsByStudent(_loggedInUser.Id)[0];
+    if (_loggedInUser == null)
+      return new List<Internship>();
+
+    return _dataProvidor.GetInternshipsByStudent(_loggedInUser!.Id);
   }
 
   public List<Internship> GetTeacherInternships()
   {
-    return _dataProvidor.GetInternshipsByTeacher(_loggedInUser.Id);
+    if (_loggedInUser == null)
+      return new List<Internship>();
+
+    return _dataProvidor.GetInternshipsByTeacher(_loggedInUser!.Id);
   }
 
   public List<Internship> GetCompanyInternships(bool approved)
   {
-    return _dataProvidor.GetInternshipsByCompany(approved, _loggedInCompany.Id);
+    if (_loggedInCompany == null)
+      return new List<Internship>();
+
+    return _dataProvidor.GetInternshipsByCompany(approved, _loggedInCompany!.Id);
   }
 
   public List<Internship> GetMentorInternships()
   {
-    return _dataProvidor.GetInternshipsByMentor(_loggedInUser.Id);
+    if (_loggedInUser == null)
+      return new List<Internship>();
+
+    return _dataProvidor.GetInternshipsByMentor(_loggedInUser!.Id);
   }
 
-  public void AddInternship(string title, string description, int mentorId)
+  public void AddInternship(string title, string description)
   {
-    Internship internship = new Internship(_dataProvidor.GetNextInternshipId(), _loggedInCompany.Id, title, description, mentorId);
+    int internshipId = _dataProvidor.GetNextInternshipId();
 
+    Internship internship = new Internship(internshipId, _loggedInCompany!.Id, title, description);
     _dataProvidor.AddInternship(internship);
+
+    InternshipEvaluation internshipEvaluation = new InternshipEvaluation(_dataProvidor.GetNextInternshipEvaluationId(), internshipId);
+    _dataProvidor.AddInternshipEvaluation(internshipEvaluation);
   }
 
   public void ApproveInternship(Internship internship)
@@ -242,12 +306,30 @@ public class LogicProvidor : ILogicProvidor
     _dataProvidor.UpdateInternship(internship);
   }
 
-  public void AssignInternship(Internship internship, int studentId, int teacherId)
+  public void AssignInternship(Internship internship, string mentorEmail, string studentEmail, string teacherEmail)
   {
-    internship.StudentId = studentId;
-    internship.TeacherId = teacherId;
+    User? mentor = _dataProvidor.GetUserByEmail(mentorEmail) ?? throw new ArgumentException("Invalid mentor email");
+    int mentorCompanyId = ((CompanyEmployee)mentor).CompanyId ?? throw new ArgumentException("Invalid mentor email");
+    if (mentorCompanyId != internship.CompanyId)
+      throw new ArgumentException("Invalid mentor email");
+
+    User? student = _dataProvidor.GetUserByEmail(studentEmail) ?? throw new ArgumentException("Invalid student email");
+    if (student.UserType != UserTypes.Student)
+      throw new ArgumentException("Invalid student email");
+    if (_dataProvidor.GetInternshipCandidatesByStudent(student.Id) ==  null)
+      throw new ArgumentException("Invalid student email");
+
+    User? teacher = _dataProvidor.GetUserByEmail(teacherEmail) ?? throw new ArgumentException("Invalid teacher email");
+    if (teacher.UserType != UserTypes.Teacher)
+      throw new ArgumentException("Invalid teacher email");
+
+    internship.MentorId = mentor.Id;
+    internship.StudentId = student.Id;
+    internship.TeacherId = teacher.Id;
 
     _dataProvidor.UpdateInternship(internship);
+    _dataProvidor.RemoveInternshipCandidates(internship.Id);
+    _dataProvidor.RemoveInternshipCandidacies(student.Id);
   }
 
   // InternshipCandidate methods
@@ -256,51 +338,29 @@ public class LogicProvidor : ILogicProvidor
     return _dataProvidor.GetInternshipCandidatesByInternship(internshipId);
   }
 
-  public List<InternshipCandidate> GetStudentInternshipCandidacies()
-  {
-    return _dataProvidor.GetInternshipCandidatesByStudent(_loggedInUser.Id);
-  }
-
   public void AddInternshipCandidate(int internshipId)
   {
-    if (((Student)_loggedInUser).CVPath == null)
-    {
-      throw new UnauthorizedAccessException("You need to have a CV to be able to put yourself as a candidate for an internship");
-    }
+    if (_loggedInUser == null)
+      throw new UnauthorizedAccessException("You are not logged in");
 
-    InternshipCandidate internshipCandidate = new InternshipCandidate(_loggedInUser.Id, internshipId);
+    if (((Student)_loggedInUser).CVPath == null)
+      throw new UnauthorizedAccessException("You need to have a CV to be able to put yourself as a candidate for an internship");
+
+    InternshipCandidate internshipCandidate = new InternshipCandidate(internshipId, _loggedInUser.Id);
 
     _dataProvidor.AddInternshipCandidate(internshipCandidate);
   }
 
-  public void RemoveInternshipCandidates(int internshipId)
-  {
-    _dataProvidor.RemoveInternshipCandidates(internshipId);
-  }
-
-  public void RemoveInternshipCandidacies(int studentId)
-  {
-    _dataProvidor.RemoveInternshipCandidacies(studentId);
-  }
-
-  public InternshipEvaluation GetInternshipEvaluation(int internshipId)
+  public InternshipEvaluation? GetInternshipEvaluation(int internshipId)
   {
     return _dataProvidor.GetInternshipEvaluationByInternship(internshipId);
   }
 
-  public void AddInternshipEvaluation(int internshipId)
-  {
-    InternshipEvaluation internshipEvaluation = new InternshipEvaluation(_dataProvidor.GetNextInternshipEvaluationId(), internshipId);
-
-    _dataProvidor.AddInternshipEvaluation(internshipEvaluation);
-  }
-
-  public void UpdateInternshipEvaluation(InternshipEvaluation internshipEvaluation, InternshipEvaluations? mentorEvaluation1, InternshipEvaluations? teacherEvaluation1, InternshipEvaluations? mentorEvaluation2, InternshipEvaluations? teacherEvaluation2, string note)
+  public void UpdateInternshipEvaluation(InternshipEvaluation internshipEvaluation, InternshipEvaluations? mentorEvaluation1, InternshipEvaluations? mentorEvaluation2, InternshipEvaluations? teacherEvaluation, string note)
   {
     internshipEvaluation.MentorEvaluation1 = mentorEvaluation1;
-    internshipEvaluation.TeacherEvaluation1 = teacherEvaluation1;
     internshipEvaluation.MentorEvaluation2 = mentorEvaluation2;
-    internshipEvaluation.TeacherEvaluation2 = teacherEvaluation2;
+    internshipEvaluation.TeacherEvaluation = teacherEvaluation;
 
     var scoreMapping = new Dictionary<InternshipEvaluations, int>
     {
@@ -314,11 +374,16 @@ public class LogicProvidor : ILogicProvidor
     int totalScore = 0;
 
     totalScore += mentorEvaluation1.HasValue ? scoreMapping[mentorEvaluation1.Value] : 0;
-    totalScore += teacherEvaluation1.HasValue ? scoreMapping[teacherEvaluation1.Value] : 0;
     totalScore += mentorEvaluation2.HasValue ? scoreMapping[mentorEvaluation2.Value] : 0;
-    totalScore += teacherEvaluation2.HasValue ? scoreMapping[teacherEvaluation2.Value] : 0;
+    totalScore += teacherEvaluation.HasValue ? scoreMapping[teacherEvaluation.Value] : 0;
 
-    internshipEvaluation.OveralScore = totalScore;
+    int totalScoreDivision = 0;
+
+    totalScoreDivision += mentorEvaluation1.HasValue ? 1 : 0;
+    totalScoreDivision += mentorEvaluation2.HasValue ? 1 : 0;
+    totalScoreDivision += teacherEvaluation.HasValue ? 1 : 0;
+
+    internshipEvaluation.OveralScore = totalScoreDivision > 0 ? totalScore / totalScoreDivision : null;    
 
     internshipEvaluation.Note = note;
 
